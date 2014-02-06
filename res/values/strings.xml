@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+	<resources>
 
-    <string name="hello">Hello World, MainActivity!</string>
-    <string name="app_name">OkGoogleNowTriggerIntent</string>
+		<string name="intent">This Xposed module will broadcast an intent whenever the key phrase \"Ok, google now\" is recognised by Motorola\'s Touchless Controls app.</string>
+		<string name="instruct">Simply listen for an intent with the action: \"com.hawkjm.okgooglenowtriggerintent.AUDIO_TRIGGER\" in Tasker or any other intent receiver of your choice.</string>
+		<string name="cavet">  The default actions are blocked, so you\'ll need to handle any additional desired voice input. &#10; At this time, the start and end recognition beeps are still played, a very short time apart. The former can be disabled in the Touchless Control\'s settings. I\'m still working on finding and stopping the second one.</string>
+		<string name="space"> </string>
+		<string name="app_name">OkGoogleNowTriggerIntent</string>
 
-</resources>
+	</resources>
