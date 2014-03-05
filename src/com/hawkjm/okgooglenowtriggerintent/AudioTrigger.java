@@ -54,13 +54,20 @@ public class AudioTrigger implements IXposedHookLoadPackage, IXposedHookZygoteIn
 	
 	public void handleLoadPackage(LoadPackageParam lpparam) throws Throwable {
 		if (lpparam.packageName.equals("com.motorola.audiomonitor")){
+			//Handle different classes for Jelly Bean version
+			String className = "com.motorola.audiomonitor.bc";
+			String paramClassName = "com.motorola.audiomonitor.t";
+			if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Jelly_Bean_MR1 || Build.VERSION.SDK_INT == Build.VERSION_CODES.Jelly_Bean_MR2){
+				className = "com.motorola.audiomonitor.bb";
+				paramClassName = "com.motorola.audiomonitor.s";	
+			}
 			//com.motorola.audiomonitor.bc.a(t) cancels a trigger event. Get the Method and parameter objects for it here.
-			final Class mClass = findClass("com.motorola.audiomonitor.bc", lpparam.classLoader);
+			final Class mClass = findClass(className, lpparam.classLoader);
 			Method[] mMethods = mClass.getDeclaredMethods();
 			Method bcMethod = null;
 			Object bcParaTypes = null;
 			for (Method mMethod : mMethods){
-				if (mMethod.getName().equals("a")&&getParametersString(mMethod.getParameterTypes()).equals("(com.motorola.audiomonitor.t)")){
+				if (mMethod.getName().equals("a")&&getParametersString(mMethod.getParameterTypes()).equals("(" + paramClassName + ")")){
 					bcMethod = mMethod;
 					bcParaTypes = mMethod.getParameterTypes();
 				}
@@ -68,7 +75,7 @@ public class AudioTrigger implements IXposedHookLoadPackage, IXposedHookZygoteIn
 			final Method aMethod = bcMethod;
 			final Object aParaTypes = bcParaTypes;
 			
-			findAndHookMethod("com.motorola.audiomonitor.bc", lpparam.classLoader, "a", "float", "com.motorola.audiomonitor.t", new XC_MethodHook(){
+			findAndHookMethod(className, lpparam.classLoader, "a", "float", paramClassName, new XC_MethodHook(){
 					protected void afterHookedMethod(MethodHookParam param){	
 						//This method is always called when the key phrase is recognized.
 						//Grab a context and send the intent.
