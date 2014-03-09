@@ -9,8 +9,10 @@ import de.robv.android.xposed.IXposedHookZygoteInit.*;
 import static de.robv.android.xposed.XposedHelpers.findAndHookMethod;
 import static de.robv.android.xposed.XposedHelpers.callMethod;
 import static de.robv.android.xposed.XposedHelpers.findClass;
+import de.robv.android.xposed.XSharedPreferences;
 import java.lang.reflect.*;
 import java.lang.Runnable;
+import java.util.Map;
 
 public class AudioTrigger implements IXposedHookLoadPackage, IXposedHookZygoteInit
 {
@@ -20,34 +22,25 @@ public class AudioTrigger implements IXposedHookLoadPackage, IXposedHookZygoteIn
 			protected void beforeHookedMethod(MethodHookParam param){
 				Context context = (Context)param.args[0];
 				if (context.toString().startsWith("com.motorola.audiomonitor")){
+					//Grab app preferences
+					XSharedPreferences prefs = new XSharedPreferences("com.hawkjm.okgooglenowtriggerintent");
+					boolean canOverride = prefs.getBoolean("pref_override", true);
 					//Touchless controls can launch different activities when triggered. Here, we look for and block them from starting.
 					Intent intent = (Intent)param.args[4];
 					//XposedBridge.log("*** Start Intent ***");
-					if (intent.getAction() != null && intent.getAction().equals("com.google.android.googlequicksearchbox.VOICE_SEARCH_RECORDED_AUDIO")){
+					if (canOverride && intent.getAction() != null && intent.getAction().equals("com.google.android.googlequicksearchbox.VOICE_SEARCH_RECORDED_AUDIO")){
 						//XposedBridge.log("Quick search box blocked");
 						param.setResult(null);
 					}
-					if (intent.getComponent() != null && intent.getComponent().toString().equals("ComponentInfo{com.motorola.audiomonitor/com.motorola.audiomonitor.uis.AOVActivity}")){
+					if (canOverride && intent.getComponent() != null && intent.getComponent().toString().equals("ComponentInfo{com.motorola.audiomonitor/com.motorola.audiomonitor.uis.AOVActivity}")){
 						//XposedBridge.log("AOVActivity blocked");
 						param.setResult(null);
 					}
-					if (intent.getComponent() != null && intent.getComponent().toString().equals("ComponentInfo{com.motorola.audiomonitor/com.motorola.audiomonitor.uis.AOVErrorActivity}")){
+					if (canOverride && intent.getComponent() != null && intent.getComponent().toString().equals("ComponentInfo{com.motorola.audiomonitor/com.motorola.audiomonitor.uis.AOVErrorActivity}")){
 						//XposedBridge.log("AOVErrorActivity blocked");
 						param.setResult(null);
 					}
 				}
-			}
-			
-		});
-		
-		findAndHookMethod("android.media.MediaPlayer", null, "create", Context.class, Uri.class, new XC_MethodHook(){
-			protected void beforeHookedMethod(MethodHookParam param){
-				Context context = (Context)param.args[0];
-				Uri uri = (Uri)param.args[1];
-				//if (context.toString().contains("motorola")){
-					XposedBridge.log("New Media Player: " + context.toString());
-					XposedBridge.log("uri: " + uri.toString());
-				//}
 			}
 		});
 	}
@@ -56,8 +49,10 @@ public class AudioTrigger implements IXposedHookLoadPackage, IXposedHookZygoteIn
 	public void handleLoadPackage(LoadPackageParam lpparam) throws Throwable {
 		if (lpparam.packageName.equals("com.motorola.audiomonitor")){
 			//Handle different classes for JellyBean version.
-			String className = "com.motorola.audiomonitor.bc";
-			String paramClassName = "com.motorola.audiomonitor.t";
+			//String className = "com.motorola.audiomonitor.bc";
+			//String paramClassName = "com.motorola.audiomonitor.t";
+			String className = "com.motorola.audiomonitor.ax";
+			String paramClassName = "com.motorola.audiomonitor.r";
 			if (Build.VERSION.SDK_INT == Build.VERSION_CODES.JELLY_BEAN_MR1 || Build.VERSION.SDK_INT == Build.VERSION_CODES.JELLY_BEAN_MR2){
 				className = "com.motorola.audiomonitor.bb";
 				paramClassName = "com.motorola.audiomonitor.s";
@@ -79,14 +74,20 @@ public class AudioTrigger implements IXposedHookLoadPackage, IXposedHookZygoteIn
 			findAndHookMethod(className, lpparam.classLoader, "a", "float", paramClassName, new XC_MethodHook(){
 					protected void afterHookedMethod(MethodHookParam param){	
 						//This method is always called when the key phrase is recognized.
+						//Grab app preferences
+						XSharedPreferences prefs = new XSharedPreferences("com.hawkjm.okgooglenowtriggerintent");
+						boolean canIntent = prefs.getBoolean("pref_intent", true);
+						boolean canOverride = prefs.getBoolean("pref_override", true);
 						//Grab a context and send the intent.
-						Object activityThread = XposedHelpers.callStaticMethod(XposedHelpers.findClass("android.app.ActivityThread", null), "currentActivityThread");
-						Context context = (Context)XposedHelpers.callMethod(activityThread, "getSystemContext");
-						Intent i = new Intent();
-						i.setAction("com.hawkjm.okgooglenowtriggerintent.AUDIO_TRIGGER");
-						context.sendBroadcast(i);
+						if (canIntent){
+							Object activityThread = XposedHelpers.callStaticMethod(XposedHelpers.findClass("android.app.ActivityThread", null), "currentActivityThread");
+							Context context = (Context)XposedHelpers.callMethod(activityThread, "getSystemContext");
+							Intent i = new Intent();
+							i.setAction("com.hawkjm.okgooglenowtriggerintent.AUDIO_TRIGGER");
+							context.sendBroadcast(i);
+						}
 						//Now, invoke the a(t) method to stop the recognizer from hogging the mic.
-						if (aMethod != null && aParaTypes != null){
+						if (canOverride && aMethod != null && aParaTypes != null){
 							try {
 								aMethod.invoke(param.thisObject, param.args[1]);
 							} catch(java.lang.reflect.InvocationTargetException|java.lang.IllegalAccessException ex){}

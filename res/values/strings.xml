@@ -6,5 +6,8 @@
 		<string name="cavet">  The default actions are blocked, so you\'ll need to handle any additional desired voice input. &#10; At this time, the start and end recognition beeps are still played, a very short time apart. The former can be disabled in the Touchless Control\'s settings. I\'m still working on finding and stopping the second one.</string>
 		<string name="space"> </string>
 		<string name="app_name">OkGoogleNowTriggerIntent</string>
+		<string name="pref_intent">Allow the intent?</string>
+		<string name="pref_override">Override touchless controls?</string>
+		<string name="pref_allowcontrol">Allow external control?</string>
 
 	</resources>

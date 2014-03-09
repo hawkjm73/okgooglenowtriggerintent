@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+	<CheckBoxPreference
+		android:key="pref_allowcontrol"
+		android:title="@string/pref_allowcontrol"
+		android:defaultValue="false" />
+	<CheckBoxPreference
+		android:key="pref_intent"
+		android:title="@string/pref_intent"
+		android:defaultValue="true" />
+	<CheckBoxPreference
+		android:key="pref_override"
+		android:title="@string/pref_override"
+		android:defaultValue="true" />
+</PreferenceScreen>
