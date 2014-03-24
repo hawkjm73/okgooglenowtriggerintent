@@ -1,8 +1,7 @@
 package com.hawkjm.okgooglenowtriggerintent;
 
 import android.content.*;
-import android.net.Uri;
-import android.os.Build;
+import android.preference.*;
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 import de.robv.android.xposed.*;
 import de.robv.android.xposed.IXposedHookZygoteInit.*;
@@ -10,110 +9,47 @@ import static de.robv.android.xposed.XposedHelpers.findAndHookMethod;
 import static de.robv.android.xposed.XposedHelpers.callMethod;
 import static de.robv.android.xposed.XposedHelpers.findClass;
 import de.robv.android.xposed.XSharedPreferences;
-import java.lang.reflect.*;
-import java.lang.Runnable;
-import java.util.Map;
 
-public class AudioTrigger implements IXposedHookLoadPackage, IXposedHookZygoteInit
+public class AudioTrigger implements IXposedHookLoadPackage
 {
-	public void initZygote(IXposedHookZygoteInit.StartupParam startupParam) throws Throwable
-	{
-		findAndHookMethod("android.app.Instrumentation", null, "execStartActivity", "android.content.Context", "android.os.IBinder", "android.os.IBinder", "android.app.Activity", "android.content.Intent", "int", "android.os.Bundle", new XC_MethodHook(){
-			protected void beforeHookedMethod(MethodHookParam param){
-				Context context = (Context)param.args[0];
-				if (context.toString().startsWith("com.motorola.audiomonitor")){
-					//Grab app preferences
-					XSharedPreferences prefs = new XSharedPreferences("com.hawkjm.okgooglenowtriggerintent");
-					boolean canOverride = prefs.getBoolean("pref_override", true);
-					//Touchless controls can launch different activities when triggered. Here, we look for and block them from starting.
-					Intent intent = (Intent)param.args[4];
-					//XposedBridge.log("*** Start Intent ***");
-					if (canOverride && intent.getAction() != null && intent.getAction().equals("com.google.android.googlequicksearchbox.VOICE_SEARCH_RECORDED_AUDIO")){
-						//XposedBridge.log("Quick search box blocked");
-						param.setResult(null);
-					}
-					if (canOverride && intent.getComponent() != null && intent.getComponent().toString().equals("ComponentInfo{com.motorola.audiomonitor/com.motorola.audiomonitor.uis.AOVActivity}")){
-						//XposedBridge.log("AOVActivity blocked");
-						param.setResult(null);
-					}
-					if (canOverride && intent.getComponent() != null && intent.getComponent().toString().equals("ComponentInfo{com.motorola.audiomonitor/com.motorola.audiomonitor.uis.AOVErrorActivity}")){
-						//XposedBridge.log("AOVErrorActivity blocked");
-						param.setResult(null);
-					}
-				}
-			}
-		});
-	}
-
-	
 	public void handleLoadPackage(LoadPackageParam lpparam) throws Throwable {
 		if (lpparam.packageName.equals("com.motorola.audiomonitor")){
-			//Handle different classes for JellyBean version.
-			//String className = "com.motorola.audiomonitor.bc";
-			//String paramClassName = "com.motorola.audiomonitor.t";
-			String className = "com.motorola.audiomonitor.ax";
-			String paramClassName = "com.motorola.audiomonitor.r";
-			if (Build.VERSION.SDK_INT == Build.VERSION_CODES.JELLY_BEAN_MR1 || Build.VERSION.SDK_INT == Build.VERSION_CODES.JELLY_BEAN_MR2){
-				className = "com.motorola.audiomonitor.bb";
-				paramClassName = "com.motorola.audiomonitor.s";
-			}
-			//com.motorola.audiomonitor.bc.a(t) cancels a trigger event. Get the Method and parameter objects for it here.
-			final Class mClass = findClass(className, lpparam.classLoader);
-			Method[] mMethods = mClass.getDeclaredMethods();
-			Method bcMethod = null;
-			Object bcParaTypes = null;
-			for (Method mMethod : mMethods){
-				if (mMethod.getName().equals("a")&&getParametersString(mMethod.getParameterTypes()).equals("(" + paramClassName + ")")){
-					bcMethod = mMethod;
-					bcParaTypes = mMethod.getParameterTypes();
+			findAndHookMethod("com.motorola.audiomonitor.service.AudioDspControl", lpparam.classLoader, "handleKeyPhraseRecognized", new XC_MethodHook(){
+				protected void beforeHookedMethod(MethodHookParam param){
+					//Check the preferences.
+					XSharedPreferences prefs = new XSharedPreferences("com.hawkjm.okgooglenowtriggerintent");
+					boolean canIntent = prefs.getBoolean("pref_intent", true);
+					boolean canOverride = prefs.getBoolean("pref_override", true);
+					if (canIntent){
+						//Grab a context and send the intent indicating a keyword recognition.
+						Object activityThread = XposedHelpers.callStaticMethod(XposedHelpers.findClass("android.app.ActivityThread", null), "currentActivityThread");
+						Context context = (Context)XposedHelpers.callMethod(activityThread, "getSystemContext");
+						Intent i = new Intent();
+						i.setAction("com.hawkjm.okgooglenowtriggerintent.AUDIO_TRIGGER");
+						context.sendBroadcast(i);
+					}
+					if (canOverride){
+						// Stopping this method stops all recognition activity afterwords, but it also stops it from working again. The afterHooked will reset the service.
+						param.setResult(null);
+					}
 				}
-			}
-			final Method aMethod = bcMethod;
-			final Object aParaTypes = bcParaTypes;
-			
-			findAndHookMethod(className, lpparam.classLoader, "a", "float", paramClassName, new XC_MethodHook(){
-					protected void afterHookedMethod(MethodHookParam param){	
-						//This method is always called when the key phrase is recognized.
-						//Grab app preferences
+				
+					protected void afterHookedMethod(MethodHookParam param){
+						//Check the preferences.
 						XSharedPreferences prefs = new XSharedPreferences("com.hawkjm.okgooglenowtriggerintent");
-						boolean canIntent = prefs.getBoolean("pref_intent", true);
 						boolean canOverride = prefs.getBoolean("pref_override", true);
-						//Grab a context and send the intent.
-						if (canIntent){
+						if (canOverride){
+							//Grab a context, stop and restart the server, so future recognition can happen.
 							Object activityThread = XposedHelpers.callStaticMethod(XposedHelpers.findClass("android.app.ActivityThread", null), "currentActivityThread");
 							Context context = (Context)XposedHelpers.callMethod(activityThread, "getSystemContext");
-							Intent i = new Intent();
-							i.setAction("com.hawkjm.okgooglenowtriggerintent.AUDIO_TRIGGER");
-							context.sendBroadcast(i);
-						}
-						//Now, invoke the a(t) method to stop the recognizer from hogging the mic.
-						if (canOverride && aMethod != null && aParaTypes != null){
-							try {
-								aMethod.invoke(param.thisObject, param.args[1]);
-							} catch(java.lang.reflect.InvocationTargetException|java.lang.IllegalAccessException ex){}
+							Intent servIntent = new Intent();
+							servIntent.setClassName("com.motorola.audiomonitor", "com.motorola.audiomonitor.MonitorService");
+							context.stopService(servIntent);
+							context.startService(servIntent);
 						}
 					}
 			});
 		}
-	}
-	
-	private static String getParametersString(Class<?>... clazzes) {
-		//this is a helper method for determining the parameters for various methods in a class
-		StringBuilder sb = new StringBuilder("(");
-		boolean first = true;
-		for (Class<?> clazz : clazzes) {
-			if (first)
-				first = false;
-			else
-				sb.append(",");
-
-			if (clazz != null)
-				sb.append(clazz.getCanonicalName());
-			else
-				sb.append("null");
-		}
-		sb.append(")");
-		return sb.toString();
 	}
 }
 	
