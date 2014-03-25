@@ -6,8 +6,8 @@
 		<string name="cavet">  The default actions are blocked, so you\'ll need to handle any additional desired voice input.</string>
 		<string name="space"> </string>
 		<string name="app_name">OkGoogleNowTriggerIntent</string>
-		<string name="pref_intent">Allowed to send the intent?</string>
-		<string name="pref_override">Override the Touchless Controls app?</string>
-		<string name="pref_allowcontrol">Allow external control of preferences?</string>
+		<string name="pref_intent">Allowed intent?</string>
+		<string name="pref_override">Allow override?</string>
+		<string name="pref_allowcontrol">Allow external control?</string>
 
 	</resources>
